@@ -158,7 +158,7 @@
 
     // Start time of the clock (local time)
     // Format: "YYYY-MM-DDTHH:MM:SS"
-    const startTime = new Date("2025-11-24T08:00:00");
+    const startTime = new Date("2025-01-01T08:00:00");
 
     // ==========================
     // DON'T EDIT BELOW THIS LINE
