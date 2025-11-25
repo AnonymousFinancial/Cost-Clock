@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Generator & AC Cost Clock</title>
+  <style>
+    body {
+      background: #060b10;
+      color: #e0f7fa;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    h1 {
+      margin-bottom: 5px;
+      color: #4dd0e1;
+    }
+    h2 {
+      margin-top: 0;
+      font-weight: 400;
+      color: #80deea;
+      font-size: 16px;
+    }
+    .config {
+      background: #0b151f;
+      border-radius: 10px;
+      padding: 12px 18px;
+      margin-bottom: 25px;
+      font-size: 13px;
+      color: #b0bec5;
+    }
+    .row {
+      display: flex;
+      gap: 12px;
+      margin: 3px 0;
+    }
+    .label {
+      min-width: 150px;
+      font-weight: 600;
+      color: #cfd8dc;
+    }
+    .value {
+      font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    .clock-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      width: 100%;
+      max-width: 800px;
+      margin-top: 10px;
+    }
+    .card {
+      background: #0b151f;
+      border-radius: 12px;
+      padding: 16px 18px;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+    }
+    .card-title {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #90a4ae;
+      margin-bottom: 8px;
+    }
+    .big-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #00e676;
+      font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    .sub-value {
+      font-size: 14px;
+      color: #b0bec5;
+      margin-top: 4px;
+    }
+    .footer {
+      margin-top: 30px;
+      font-size: 12px;
+      color: #78909c;
+      text-align: center;
+    }
+    .warning {
+      color: #ffab91;
+    }
+  </style>
+</head>
+<body>
+  <h1>Generator & AC Cost Clock</h1>
+  <h2>Live cost of running the portable generator and AC unit</h2>
+
+  <div class="config">
+    <div class="row">
+      <div class="label">Daily diesel cost:</div>
+      <div class="value" id="cfgDiesel"></div>
+    </div>
+    <div class="row">
+      <div class="label">Daily rental cost:</div>
+      <div class="value" id="cfgRental"></div>
+    </div>
+    <div class="row">
+      <div class="label">Total daily cost:</div>
+      <div class="value" id="cfgTotal"></div>
+    </div>
+    <div class="row">
+      <div class="label">Start time:</div>
+      <div class="value" id="cfgStart"></div>
+    </div>
+    <div class="row">
+      <div class="label">Cost per second:</div>
+      <div class="value" id="cfgPerSecond"></div>
+    </div>
+  </div>
+
+  <div class="clock-container">
+    <div class="card">
+      <div class="card-title">Total Cost Since Start</div>
+      <div class="big-value" id="totalCost">$0.00</div>
+      <div class="sub-value" id="totalPerHour"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Diesel Cost Since Start</div>
+      <div class="big-value" id="dieselCost">$0.00</div>
+      <div class="sub-value" id="dieselRate"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Rental Cost Since Start</div>
+      <div class="big-value" id="rentalCost">$0.00</div>
+      <div class="sub-value" id="rentalRate"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Elapsed Time</div>
+      <div class="big-value" id="elapsedMain">0d 00:00:00</div>
+      <div class="sub-value" id="elapsedDetail"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div>Update the values in the JavaScript config section to match your current diesel & rental costs.</div>
+    <div class="warning">Leave this page open on a monitor at the station if you want everyone to feel the burn.</div>
+  </div>
+
+  <script>
+    // ==========================
+    // CONFIGURE THESE NUMBERS
+    // ==========================
+
+    // Daily costs in dollars
+    const dailyDieselCost = 273;   // e.g. your ~24/7 fuel cost estimate
+    const dailyRentalCost = 1650;  // daily generator + AC rental
+
+    // Start time of the clock (local time)
+    // Format: "YYYY-MM-DDTHH:MM:SS"
+    const startTime = new Date("2025-11-24T08:00:00");
+
+    // ==========================
+    // DON'T EDIT BELOW THIS LINE
+    // ==========================
+
+    const secondsPerDay = 86400;
+    const dieselPerSecond = dailyDieselCost / secondsPerDay;
+    const rentalPerSecond = dailyRentalCost / secondsPerDay;
+    const totalPerSecond = dieselPerSecond + rentalPerSecond;
+
+    function formatCurrency(value) {
+      return "$" + value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
+
+    function formatDuration(totalSeconds) {
+      totalSeconds = Math.floor(totalSeconds);
+      const days = Math.floor(totalSeconds / 86400);
+      const hours = Math.floor((totalSeconds % 86400) / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+
+      const hh = String(hours).padStart(2, "0");
+      const mm = String(minutes).padStart(2, "0");
+      const ss = String(seconds).padStart(2, "0");
+
+      return { days, daysString: `${days}d ${hh}:${mm}:${ss}` };
+    }
+
+    function updateConfigDisplay() {
+      document.getElementById("cfgDiesel").textContent = formatCurrency(dailyDieselCost) + " per day";
+      document.getElementById("cfgRental").textContent = formatCurrency(dailyRentalCost) + " per day";
+      document.getElementById("cfgTotal").textContent = formatCurrency(dailyDieselCost + dailyRentalCost) + " per day";
+      document.getElementById("cfgStart").textContent = startTime.toString();
+      document.getElementById("cfgPerSecond").textContent =
+        formatCurrency(totalPerSecond) + " / second (" +
+        formatCurrency((dailyDieselCost + dailyRentalCost) / 3600) + " / hour)";
+    }
+
+    function updateClock() {
+      const now = new Date();
+      const elapsedSeconds = Math.max(0, (now - startTime) / 1000);
+
+      const dieselCost = dieselPerSecond * elapsedSeconds;
+      const rentalCost = rentalPerSecond * elapsedSeconds;
+      const totalCost = dieselCost + rentalCost;
+
+      const duration = formatDuration(elapsedSeconds);
+
+      document.getElementById("dieselCost").textContent = formatCurrency(dieselCost);
+      document.getElementById("rentalCost").textContent = formatCurrency(rentalCost);
+      document.getElementById("totalCost").textContent = formatCurrency(totalCost);
+
+      document.getElementById("elapsedMain").textContent = duration.daysString;
+      document.getElementById("elapsedDetail").textContent =
+        "Elapsed seconds: " + Math.floor(elapsedSeconds).toLocaleString("en-US");
+
+      document.getElementById("dieselRate").textContent =
+        formatCurrency(dailyDieselCost) + " / day (" +
+        formatCurrency(dieselPerSecond) + " / second)";
+      document.getElementById("rentalRate").textContent =
+        formatCurrency(dailyRentalCost) + " / day (" +
+        formatCurrency(rentalPerSecond) + " / second)";
+      document.getElementById("totalPerHour").textContent =
+        "Rate: " + formatCurrency((dailyDieselCost + dailyRentalCost) / 24) + " per hour";
+    }
+
+    updateConfigDisplay();
+    updateClock();
+    setInterval(updateClock, 100);
+  </script>
+</body>
+</html>
